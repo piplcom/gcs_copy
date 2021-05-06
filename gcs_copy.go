@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	// "log"
 	// "os"
@@ -81,6 +82,7 @@ func main() {
 		func2run = transfer.CreateDownloadRoutines
 	}
 
+	fmt.Println("we will scan now local dir and the bucket, might take lots of time depending on number of files")
 	go ppaths.PWalkDir(localRoot, &ppaths.AllFiles, &walkWg)
 	go ppaths.WalkBucket(bucketRoot, &ppaths.AllObjects, &walkWg, cred)
 	walkWg.Wait()
@@ -96,7 +98,9 @@ func main() {
 	}
 
 	if !check {
+		fmt.Println("started transfer at: ",time.Now())
 		transfer.Transfer(args, func2run)
+		fmt.Println("finished transfer at: ",time.Now())
 	}
 
 }
