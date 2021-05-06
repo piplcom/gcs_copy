@@ -9,10 +9,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/piplcom/gcs_copy/conf"
+	ppaths "github.com/piplcom/gcs_copy/paths"
+	"github.com/piplcom/gcs_copy/transfer"
 	log "github.com/sirupsen/logrus"
-	"github.com/yosefy/gcp_copy/conf"
-	ppaths "github.com/yosefy/gcp_copy/paths"
-	"github.com/yosefy/gcp_copy/transfer"
 )
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
 		fcheck = flag.Bool("check", false, "check only")
 
 		localRoot, bucketRoot string
-		itemObjects = make(map[string]*ppaths.Items)
+		itemObjects           = make(map[string]*ppaths.Items)
 	)
 	flag.Parse()
 
@@ -43,8 +43,6 @@ func main() {
 	conc := *fconc
 	check := *fcheck
 
-
-
 	var args = conf.Args{
 		Conc: conc,
 		In:   in,
@@ -52,7 +50,7 @@ func main() {
 		Cred: cred,
 	}
 
-	fmt.Println(args, check)
+	// fmt.Println(args, check)
 	direction, err := ppaths.Direction(*fin, *fout)
 	if err != nil {
 		log.Fatal("wrong parameters type, should start with '/' or 'gs://'")
@@ -93,13 +91,12 @@ func main() {
 	i, s := ppaths.ItemsSum(ppaths.ItemsToTransfer)
 	if len(ppaths.ItemsToTransfer.List) > 0 {
 		fmt.Printf("number of files to transfer: %v\ntotal size is: %v Bytes (%.2f) GB\n", i, s, float64(s)/1024/1024/1024)
-		} else {
-			fmt.Println("all files are the same size, there is nothing to transfer")
-		}
-		
-		if !check {
-			transfer.Transfer(args, func2run)
-		}
+	} else {
+		fmt.Println("all files are the same size, there is nothing to transfer")
+	}
 
+	if !check {
+		transfer.Transfer(args, func2run)
+	}
 
 }

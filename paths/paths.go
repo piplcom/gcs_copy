@@ -213,7 +213,6 @@ func ItemsSum(items Items) (int, int64) {
 func FillItemsToTransfer(in Items, out Items) {
 
 	for _, v := range in.List {
-		fmt.Println(v)
 		var a = TransferCheck(out.List, v)
 		if a.Path != "" {
 			ItemsToTransfer.List = append(ItemsToTransfer.List, a)

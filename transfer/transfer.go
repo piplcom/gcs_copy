@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	// "log"
 	"os"
 	"path/filepath"
+
 	// "regexp"
 	"strings"
 	"sync"
@@ -16,9 +18,10 @@ import (
 	retry "github.com/avast/retry-go"
 
 	// "github.com/pkg/errors"
-	"github.com/yosefy/gcp_copy/conf"
-	ppaths "github.com/yosefy/gcp_copy/paths"
+	"github.com/piplcom/gcs_copy/conf"
+	ppaths "github.com/piplcom/gcs_copy/paths"
 	"google.golang.org/api/option"
+
 	// "github.com/schollz/progressbar/v3"
 	log "github.com/sirupsen/logrus"
 )
@@ -42,7 +45,6 @@ func Transfer(args conf.Args, f func(args conf.Args, wg *sync.WaitGroup)) {
 	// 	time.Sleep(time.Second)
 	// }
 
-	
 	wg.Wait()
 
 	fmt.Printf("\nDone All\n")
@@ -58,7 +60,7 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup) {
 
 	// TODO make function again
 	client, err := storage.NewClient(ctx, option.WithCredentialsFile(args.Cred))
-	
+
 	if err != nil {
 		log.Fatalln("error creating a client: ", err)
 	}
@@ -123,7 +125,6 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
 	defer cancel()
 
-
 	// TODO make function again
 	client, err := storage.NewClient(ctx, option.WithCredentialsFile(args.Cred))
 	if err != nil {
@@ -135,7 +136,6 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup) {
 	}
 	defer client.Close()
 	//
-
 
 	for v := range ppaths.ItemsToTransferChan {
 		err := retry.Do(
@@ -154,7 +154,7 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup) {
 					log.Errorln(err)
 				}
 
-				f, err := os.OpenFile(args.Out+ "/" +v.Path, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+				f, err := os.OpenFile(args.Out+"/"+v.Path, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 				if err != nil {
 					f.Close()
 					fmt.Println(err)
@@ -176,14 +176,12 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup) {
 				ppaths.ItemsSizeCurrent = ppaths.ItemsSizeCurrent - v.Size
 				m.Unlock()
 
-
 				fmt.Printf("\r\033[K%d files left to process size is %.2fG",
 					ppaths.ItemsNumberCurrent,
 					float64(ppaths.ItemsSizeCurrent)/1024/1024/1024)
 
 				f.Close()
 				reader.Close()
-
 
 				return nil
 
