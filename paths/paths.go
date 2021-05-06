@@ -3,12 +3,13 @@ package paths
 import (
 	"context"
 	"fmt"
+
 	// "log"
+	"os"
 	"regexp"
 	"sort"
 	"sync"
 	"time"
-	"os"
 
 	// "strconv"
 	"strings"
@@ -17,20 +18,20 @@ import (
 	"path/filepath"
 
 	"cloud.google.com/go/storage"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
-	FilesChan          		= make(chan Item)
-	GcpObjectsChan     		= make(chan Item)
-	ItemsToTransferChan		= make(chan Item)
-	AllFiles           		Items
-	AllObjects         		Items
-	ItemsToTransfer    		Items
-	ItemsNumberCurrent 		int
-	ItemsSizeCurrent   		int64
+	FilesChan           = make(chan Item)
+	GcpObjectsChan      = make(chan Item)
+	ItemsToTransferChan = make(chan Item)
+	AllFiles            Items
+	AllObjects          Items
+	ItemsToTransfer     Items
+	ItemsNumberCurrent  int
+	ItemsSizeCurrent    int64
 )
 
 type Item struct {
@@ -54,7 +55,7 @@ func ExtrBucketNameFromPath(path string) string {
 func ExtrPrefixNameFromGCPPath(path string) string {
 	mb := regexp.MustCompile("gs://([^/]*/?)(.*)")
 	return mb.ReplaceAllString(path, "$2")
-	
+
 }
 
 func ExtrObjNameFromPath(path string) string {
@@ -71,8 +72,6 @@ func RemoveBucketNameFromPath(path string) string {
 	m := regexp.MustCompile("gs://[^/]*/?(.*)")
 	return m.ReplaceAllString(path, "$1")
 }
-
-
 
 func Direction(in, out string) (string, error) {
 
@@ -102,6 +101,7 @@ func Direction(in, out string) (string, error) {
 // }
 
 func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
+	fmt.Println("starting scanning the local directory")
 	// Check if dir exists at all
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		fmt.Printf("%q does not exist, will create it\n", root)
@@ -129,18 +129,16 @@ func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 	sortBySize(items)
 
 	wg.Done()
-	fmt.Printf("found %d the files in local directory\n",len(items.List))
+	fmt.Printf("found %d the files in local directory\n", len(items.List))
 	return nil
 }
 
 func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) error {
-
+	fmt.Println("starting scanning the bucket")
 	bucket := ExtrBucketNameFromPath(root)
 	prefix := ExtrPrefixNameFromGCPPath(root)
 
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
-	defer cancel()
 	defer cancel()
 
 	// TODO make function again
@@ -159,7 +157,8 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 	itterObj := client.Bucket(bucket).Objects(ctx, &storage.Query{
 		Prefix: prefix,
 	})
-
+	// itterObj.PageInfo().MaxSize = 10000
+	// fmt.Println(fmt.Printf("%+v\n", itterObj.PageInfo()))
 	for i := 0; ; i++ {
 		attrs, err := itterObj.Next()
 		if err == iterator.Done {
@@ -174,26 +173,21 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 			// fmt.Printf("found : %q of size %d\n",strings.TrimPrefix(attrs.Name, prefix+"/"),attrs.Size)
 			f := Item{Path: strings.TrimPrefix(attrs.Name, prefix+"/"), Size: attrs.Size}
 			items.List = append(items.List, f)
-
-			// Sorting files by size from big to small
-			// sort.Slice(items.List, func(i, j int) bool { return items.List[j].Size < items.List[i].Size })
-			sortBySize(items)
-
 		}
-
 	}
 
+	// Sorting files by size from big to small
+	// sort.Slice(items.List, func(i, j int) bool { return items.List[j].Size < items.List[i].Size })
+	sortBySize(items)
 
-
-
-	fmt.Printf("found %d the files in the bucket\n",len(items.List))
+	fmt.Printf("found %d the files in the bucket\n", len(items.List))
 	wg.Done()
 
 	return nil
 
 }
 
-func sortBySize(items *Items){
+func sortBySize(items *Items) {
 	sort.Slice(items.List, func(i, j int) bool { return items.List[j].Size < items.List[i].Size })
 }
 
@@ -217,9 +211,8 @@ func FillItemsToTransfer(in Items, out Items) {
 		if a.Path != "" {
 			ItemsToTransfer.List = append(ItemsToTransfer.List, a)
 		}
-		
-	}
 
+	}
 
 }
 
@@ -234,7 +227,6 @@ func TransferCheck(p []Item, check Item) Item {
 }
 
 func Slice2Chan(items Items, c chan Item) {
-	// log.Infoln("in Slice2CHan")
 	for _, v := range items.List {
 		c <- v
 	}
