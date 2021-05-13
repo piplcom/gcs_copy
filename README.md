@@ -19,9 +19,10 @@ small command line util to transfer files between **local or nfs mount** <==> **
 
 ### flags:
 ```
-  -conc:  concurrent streams (usually 64 is good to utilize max of the system) <br>
-          set more for lots of small files <br/><br/>
+  -conc:  concurrent streams (usually 64 is good to utilize max of the system)
+          set more for lots of small files <br><br>
 ```
+
 ```
   -check: dry run (to check upload total size and files number)
 ```
