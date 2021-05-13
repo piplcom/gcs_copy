@@ -20,10 +20,10 @@ func main() {
 
 	// log := log.New(os.Stdout, "MAIN : ", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
 	// var err error
-	Formatter := new(log.TextFormatter)
-	Formatter.TimestampFormat = "02-01-2006 15:04:05"
-	Formatter.FullTimestamp = true
-	log.SetFormatter(Formatter)
+	// Formatter := new(log.TextFormatter)
+	// Formatter.TimestampFormat = "02-01-2006 15:04:05"
+	// Formatter.FullTimestamp = true
+	// log.SetFormatter(Formatter)
 
 	// config
 	var (
@@ -32,9 +32,10 @@ func main() {
 		fout   = flag.String("out", "", "output dir path, starting with gs:// for bucket or just / for dir")
 		fconc  = flag.Int("conc", 64, "upload cuncurrency")
 		fcheck = flag.Bool("check", false, "check only")
+		// log_level = flag.String("check", "INFO", "log level")
 
 		localRoot, bucketRoot string
-		itemObjects           = make(map[string]*ppaths.Items)
+		itemObjects = make(map[string]*ppaths.Items)
 	)
 	flag.Parse()
 
@@ -73,6 +74,7 @@ func main() {
 	case direction == "local2bucket":
 		localRoot, bucketRoot = in, out
 		itemObjects["in"] = &ppaths.AllFiles
+		// itemObjectsIn := &ppaths.AllFiles
 		itemObjects["out"] = &ppaths.AllObjects
 		func2run = transfer.CreateUploadRoutines
 	case direction == "bucket2local":
@@ -82,7 +84,11 @@ func main() {
 		func2run = transfer.CreateDownloadRoutines
 	}
 
-	fmt.Println("we will scan now local dir and the bucket, might take lots of time depending on number of files")
+	log.Println("started at: ",time.Now())
+	fmt.Println("we will scan now local dir and the bucket, might take time depending on number of files")
+	fmt.Println("even half an hour for millions of files")
+	fmt.Println("for small ammount of files whould take few seconds")
+
 	go ppaths.PWalkDir(localRoot, &ppaths.AllFiles, &walkWg)
 	go ppaths.WalkBucket(bucketRoot, &ppaths.AllObjects, &walkWg, cred)
 	walkWg.Wait()
