@@ -101,7 +101,7 @@ func Direction(in, out string) (string, error) {
 // }
 
 func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
-	fmt.Println("starting scanning the local directory")
+	log.Println("starting scanning the local directory")
 	// Check if dir exists at all
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		fmt.Printf("%q does not exist, will create it\n", root)
@@ -129,12 +129,12 @@ func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 	sortBySize(items)
 
 	wg.Done()
-	fmt.Printf("found %d the files in local directory\n", len(items.List))
+	log.Printf("found %d the files in local directory\n", len(items.List))
 	return nil
 }
 
 func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) error {
-	fmt.Println("starting scanning the bucket")
+	log.Println("starting scanning the bucket")
 	bucket := ExtrBucketNameFromPath(root)
 	prefix := ExtrPrefixNameFromGCPPath(root)
 
@@ -180,7 +180,7 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 	// sort.Slice(items.List, func(i, j int) bool { return items.List[j].Size < items.List[i].Size })
 	sortBySize(items)
 
-	fmt.Printf("found %d the files in the bucket\n", len(items.List))
+	log.Printf("found %d the files in the bucket\n", len(items.List))
 	wg.Done()
 
 	return nil
@@ -205,16 +205,30 @@ func ItemsSum(items Items) (int, int64) {
 }
 
 func FillItemsToTransfer(in Items, out Items) {
+	checkMap :=make(map[string]int64)
 
-	for _, v := range in.List {
-		var a = TransferCheck(out.List, v)
-		if a.Path != "" {
-			ItemsToTransfer.List = append(ItemsToTransfer.List, a)
-		}
-
+	for _,v := range out.List {
+		checkMap[v.Path] = v.Size
 	}
 
+	// log.Println("started adding diff to list")
+	for _, v := range in.List {
+		
+		if size, ok := checkMap[v.Path]; !ok || size != v.Size {
+			// log.Printf("adding  to list because %d != %d",size, v.Size)
+			ItemsToTransfer.List = append(ItemsToTransfer.List, v)
+			//do something here
+		}
+		// var a = TransferCheck(out.List, v)
+		// if a.Path != "" {
+			// 	ItemsToTransfer.List = append(ItemsToTransfer.List, a)
+			// }
+			
+		}
+	// log.Println("done adding diff to list")
+
 }
+
 
 func TransferCheck(p []Item, check Item) Item {
 	var v Item
