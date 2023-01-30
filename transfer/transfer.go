@@ -27,13 +27,13 @@ import (
 )
 
 // func Transfer(log *log.Logger, args conf.Args, direction string) {
-func Transfer(args conf.Args, f func(args conf.Args, wg *sync.WaitGroup)) {
+func Transfer(args conf.Args,c *chan ppaths.Item, f func(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item)) {
 
 	var wg sync.WaitGroup
 	wg.Add(args.Conc)
 
 	for i := 0; i < args.Conc; i++ {
-		go f(args, &wg)
+		go f(args, &wg, c)
 	}
 
 	// Option for progress bar
@@ -51,7 +51,7 @@ func Transfer(args conf.Args, f func(args conf.Args, wg *sync.WaitGroup)) {
 
 }
 
-func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup) {
+func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item) {
 	bucket := ppaths.ExtrBucketNameFromPath(args.Out)
 	// log.Infoln("bucket before: ", bucket)
 
@@ -72,7 +72,7 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup) {
 	//
 
 	dstPath := ppaths.RemoveBucketNameFromPath(args.Out)
-	for v := range ppaths.ItemsToTransferChan {
+	for v := range *c {
 		err := retry.Do(
 			func() error {
 				obj := strings.TrimPrefix(dstPath+"/"+v.Path, "/")
@@ -119,7 +119,7 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup) {
 
 }
 
-func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup) {
+func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item) {
 
 	bucket := ppaths.ExtrBucketNameFromPath(args.In)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
@@ -136,35 +136,37 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup) {
 	}
 	defer client.Close()
 	//
+	// fmt.Println("reading from chan: ", <-*c)
 
-	for v := range ppaths.ItemsToTransferChan {
+	for v := range *c {
+		
 		err := retry.Do(
 			func() error {
-
+				
 				obj := ppaths.ExtrObjNameFromPath(args.In + "/" + v.Path)
 				toMkdir := filepath.Dir(args.Out + "/" + v.Path)
-
+				
 				err := os.MkdirAll(toMkdir, os.ModePerm)
 				if err != nil {
 					fmt.Println(err)
 				}
-
+				
 				reader, err := bh.Object(obj).NewReader(ctx)
 				if err != nil {
 					log.Errorln(err)
 				}
-
+				
 				f, err := os.OpenFile(args.Out+"/"+v.Path, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 				if err != nil {
 					f.Close()
 					fmt.Println(err)
 				}
-
 				w, err := io.Copy(f, reader)
 				if err != nil {
 					log.Fatalln(err)
 					return err
 				}
+
 				if w != v.Size {
 					log.Printf("expected to transfer file of size %d but got %d", v.Size, w)
 					return err

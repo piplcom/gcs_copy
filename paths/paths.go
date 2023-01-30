@@ -23,16 +23,20 @@ import (
 	"google.golang.org/api/option"
 )
 
+
+type ItemsToTransferChan chan Item
 var (
-	FilesChan           = make(chan Item)
-	GcpObjectsChan      = make(chan Item)
-	ItemsToTransferChan = make(chan Item)
 	AllFiles            Items
 	AllObjects          Items
-	ItemsToTransfer     Items
+	// ItemsToTransfer     Items
 	ItemsNumberCurrent  int
 	ItemsSizeCurrent    int64
 )
+
+func NewItemsToTransferChan() (*chan Item) {
+	var ItemsToTransferChan = make(chan Item)
+	return &ItemsToTransferChan
+}
 
 type Item struct {
 	Path string
@@ -53,14 +57,16 @@ func ExtrBucketNameFromPath(path string) string {
 }
 
 func ExtrPrefixNameFromGCPPath(path string) string {
+	p := strings.TrimSuffix(path, "/")
 	mb := regexp.MustCompile("gs://([^/]*/?)(.*)")
-	return mb.ReplaceAllString(path, "$2")
+	return mb.ReplaceAllString(p, "$2")
 
 }
 
 func ExtrObjNameFromPath(path string) string {
+	p := strings.TrimSuffix(path, "/")
 	mp := regexp.MustCompile("gs://[^/]*/(.*)")
-	return mp.ReplaceAllString(path, "$1")
+	return mp.ReplaceAllString(p, "$1")
 }
 
 func IsDir(path string) bool {
@@ -74,7 +80,8 @@ func RemoveBucketNameFromPath(path string) string {
 }
 
 func Direction(in, out string) (string, error) {
-
+	log.Println("in: ", in)
+	log.Println("in: ", out)
 	switch {
 	case IsBucket(in) && IsBucket(out):
 		return "bucket2bucket", nil
@@ -204,7 +211,9 @@ func ItemsSum(items Items) (int, int64) {
 	return i, s
 }
 
-func FillItemsToTransfer(in Items, out Items) {
+func FillItemsToTransfer(in Items, out Items, i2t *Items) {
+	i2t.List = nil
+
 	checkMap :=make(map[string]int64)
 
 	for _,v := range out.List {
@@ -216,7 +225,7 @@ func FillItemsToTransfer(in Items, out Items) {
 		
 		if size, ok := checkMap[v.Path]; !ok || size != v.Size {
 			// log.Printf("adding  to list because %d != %d",size, v.Size)
-			ItemsToTransfer.List = append(ItemsToTransfer.List, v)
+			i2t.List = append(i2t.List, v)
 			//do something here
 		}
 		// var a = TransferCheck(out.List, v)

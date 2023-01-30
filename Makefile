@@ -17,8 +17,7 @@ clean:
 
 package:
 	$(MAKE) package-targz GOOS=linux GOARCH=amd64
-	$(MAKE) package-zip GOOS=darwin GOARCH=amd64
-	$(MAKE) package-zip GOOS=windows GOARCH=amd64
+	$(MAKE) package-zip GOOS=darwin GOARCH=arm64
 
 package-zip: build
 	mkdir -p package
