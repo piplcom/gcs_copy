@@ -66,7 +66,7 @@ func main() {
 		out := strings.TrimSuffix(*fout, "/")
 		conc := *fconc
 		check = *fcheck
-
+	
 		// fmt.Println(args, check)
 		// direction, err := ppaths.Direction(*fin, *fout)
 		// log.Println()
@@ -74,17 +74,13 @@ func main() {
 		// 	log.Fatal("wrong parameters type, should start with '/' or 'gs://'")
 		// }
 
-		fmt.Printf("---------------------------------------------\n")
-		fmt.Printf("credential: %s\t\t\n", cred)
-		fmt.Printf("input:      %s\t\t\n", in)
-		fmt.Printf("output:     %s\t\t\n", out)
-		fmt.Printf("concurrent workers:     %d\t\t\n", conc)
-		fmt.Printf("---------------------------------------------\n\n")
+
 		var Args = conf.Args{
 			Conc: conc,
 			In:   in,
 			Out:  out,
 			Cred: cred,
+
 		}
 		runCopy(Args)
 	}
@@ -92,6 +88,16 @@ func main() {
 }
 
 func runCopy(args conf.Args) {
+
+
+	fmt.Printf("---------------------------------------------\n")
+	fmt.Printf("credential: %s\t\t\n", args.Cred)
+	fmt.Printf("input:      %s\t\t\n", args.In)
+	fmt.Printf("output:     %s\t\t\n", args.Out)
+	fmt.Printf("concurrent workers:     %d\t\t\n", args.Conc)
+	fmt.Printf("---------------------------------------------\n\n")
+
+
 	var ItemsToTransfer     ppaths.Items
 	var itemObjects = make(map[string]*ppaths.Items)
 	ppaths.AllFiles.List = nil

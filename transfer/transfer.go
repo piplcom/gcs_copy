@@ -76,8 +76,8 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 		err := retry.Do(
 			func() error {
 				obj := strings.TrimPrefix(dstPath+"/"+v.Path, "/")
-
 				writer := bh.Object(obj).NewWriter(ctx)
+				args.In, _ = ppaths.RemoveStarsFromRoot(args.In)
 				f, err := os.Open(args.In + "/" + v.Path)
 				if err != nil {
 					fmt.Println(err)

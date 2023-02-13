@@ -23,17 +23,17 @@ import (
 	"google.golang.org/api/option"
 )
 
-
 type ItemsToTransferChan chan Item
+
 var (
-	AllFiles            Items
-	AllObjects          Items
+	AllFiles   Items
+	AllObjects Items
 	// ItemsToTransfer     Items
-	ItemsNumberCurrent  int
-	ItemsSizeCurrent    int64
+	ItemsNumberCurrent int
+	ItemsSizeCurrent   int64
 )
 
-func NewItemsToTransferChan() (*chan Item) {
+func NewItemsToTransferChan() *chan Item {
 	var ItemsToTransferChan = make(chan Item)
 	return &ItemsToTransferChan
 }
@@ -79,6 +79,19 @@ func RemoveBucketNameFromPath(path string) string {
 	return m.ReplaceAllString(path, "$1")
 }
 
+func RemoveStarsFromRoot(root string) (r, p string) {
+	var pref string
+	if strings.HasSuffix(root, "/**") || strings.HasSuffix(root, "/*") {
+		mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
+		root = mb.ReplaceAllString(root, "$1")
+	} else if strings.HasSuffix(root, "**") || strings.HasSuffix(root, "*") {
+		mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
+		pref = mb.ReplaceAllString(root, "$2")
+		root = mb.ReplaceAllString(root, "$1")
+	}
+	return root, pref
+}
+
 func Direction(in, out string) (string, error) {
 	log.Println("in: ", in)
 	log.Println("in: ", out)
@@ -110,6 +123,19 @@ func Direction(in, out string) (string, error) {
 func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 	log.Println("starting scanning the local directory")
 	// Check if dir exists at all
+	// var pref string //prefix for glob
+
+	// if strings.HasSuffix(root, "/**") || strings.HasSuffix(root, "/*") {
+	// 	mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
+	// 	root = mb.ReplaceAllString(root, "$1")
+	// } else if strings.HasSuffix(root, "**") || strings.HasSuffix(root, "*") {
+	// 	mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
+	// 	pref = mb.ReplaceAllString(root, "$2")
+	// 	root = mb.ReplaceAllString(root, "$1")
+	// }
+
+	root, pref := RemoveStarsFromRoot(root)
+
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		fmt.Printf("%q does not exist, will create it\n", root)
 		wg.Done()
@@ -121,9 +147,15 @@ func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
 		}
-		if !info.IsDir() {
+
+		if info.IsDir() {
+			return nil
+		}
+
+		if strings.HasPrefix(info.Name(), pref) {
 			sn := strings.TrimPrefix(path, root+"/")
 			f := Item{Path: sn, Size: info.Size()}
+			fmt.Println("SSSNNN", sn)
 			items.List = append(items.List, f)
 		}
 
@@ -214,15 +246,15 @@ func ItemsSum(items Items) (int, int64) {
 func FillItemsToTransfer(in Items, out Items, i2t *Items) {
 	i2t.List = nil
 
-	checkMap :=make(map[string]int64)
+	checkMap := make(map[string]int64)
 
-	for _,v := range out.List {
+	for _, v := range out.List {
 		checkMap[v.Path] = v.Size
 	}
 
 	// log.Println("started adding diff to list")
 	for _, v := range in.List {
-		
+
 		if size, ok := checkMap[v.Path]; !ok || size != v.Size {
 			// log.Printf("adding  to list because %d != %d",size, v.Size)
 			i2t.List = append(i2t.List, v)
@@ -230,14 +262,13 @@ func FillItemsToTransfer(in Items, out Items, i2t *Items) {
 		}
 		// var a = TransferCheck(out.List, v)
 		// if a.Path != "" {
-			// 	ItemsToTransfer.List = append(ItemsToTransfer.List, a)
-			// }
-			
-		}
+		// 	ItemsToTransfer.List = append(ItemsToTransfer.List, a)
+		// }
+
+	}
 	// log.Println("done adding diff to list")
 
 }
-
 
 func TransferCheck(p []Item, check Item) Item {
 	var v Item

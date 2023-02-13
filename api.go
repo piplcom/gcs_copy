@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/piplcom/gcs_copy/conf"
@@ -26,13 +25,6 @@ func handleRunCopy(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println(Args)
 	runCopy(Args)
-
-	fmt.Printf("---------------------------------------------\n")
-	fmt.Printf("credential: %s\t\t\n", cred)
-	fmt.Printf("input:      %s\t\t\n", in)
-	fmt.Printf("output:     %s\t\t\n", out)
-	fmt.Printf("concurrent workers:     %d\t\t\n", conc)
-	fmt.Printf("---------------------------------------------\n\n")
 }
 
 func handleGetStatus(w http.ResponseWriter, r *http.Request) {
