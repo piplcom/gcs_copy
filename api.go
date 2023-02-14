@@ -52,7 +52,7 @@ func handleSize(w http.ResponseWriter, r *http.Request) {
 	walkWg.Add(len(sizePaths))
 	for _, v := range sizePaths {
 
-		fmt.Fprintf(w, "%s\n", v)
+		// fmt.Fprintf(w, "%s\n", v)
 		go ppaths.GetDirsSize(v, dirs, &totalSize, &walkWg, &mu)
 		if err != nil {
 			log.Error(err)
