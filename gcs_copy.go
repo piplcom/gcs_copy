@@ -38,10 +38,16 @@ var (
 )
 
 
-
+var (
+    version = "dev"
+    commit  = "none"
+    date    = "unknown"
+)
 
 func main() {
-
+	fmt.Println("test")
+	fmt.Println("version: ", Version)
+	fmt.Printf("my app %s, commit %s, built at %s", version, commit, date)
 	// log := log.New(os.Stdout, "MAIN : ", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
 	// var err error
 	// Formatter := new(log.TextFormatter)
