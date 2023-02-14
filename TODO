@@ -1,2 +1,3 @@
-//TODO add option to include b regexp
-//TODO add option to exclude b regexp
+//TODO add option to include b regexp (done for dirs but ugly)
+// add regex for buket
+// add size for bucket
