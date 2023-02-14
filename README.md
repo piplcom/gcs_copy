@@ -16,12 +16,34 @@ to start copy send POST request to /run endpoing
 ```
 {
     "Conc": 2,
-    "In":   "gs://yosef-test11/test2/dap-sdime-output",
-    "Out":  "/Users/yosef.yudilevich/git/gcs_copy/test6"
+    "In":   "gs://bucketx/test",
+    "Out":  "/bigdir/test6"
+    "Check": true // for dry run (to get sizes to copy) default false
 }
 ```
 
-to get status GET /state
+for regex in directory use` **`
+/tmp/testdir/** will work same as /tmp/testdir/ (without blob)
+
+```
+{
+    "Conc": 64,
+    "In":   "/tmp/testdir/files**",
+    "Out":  "gs://bucket66/test1"
+    "Check": true // for dry run (to get sizes to copy) default false
+}
+```
+
+to get status GET /state </br></br>
+
+to get dirs sizes GET /size (no regex!):
+```
+[
+    "/Users/yosef.yudilevich/git/gcs_copy/test/aa",
+    "/Users/yosef.yudilevich/git/gcs_copy/test/bb"
+]
+```
+
 
 
 ### Download: 
