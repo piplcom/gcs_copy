@@ -79,7 +79,7 @@ func RemoveBucketNameFromPath(path string) string {
 	return m.ReplaceAllString(path, "$1")
 }
 
-func RemoveStarsFromRoot(root string) (r, p string) {
+func RemoveStarsFromRoot(root string) (root_path, prefix string) {
 	var pref string
 	if strings.HasSuffix(root, "/**") || strings.HasSuffix(root, "/*") {
 		mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
@@ -93,8 +93,6 @@ func RemoveStarsFromRoot(root string) (r, p string) {
 }
 
 func Direction(in, out string) (string, error) {
-	log.Println("in: ", in)
-	log.Println("in: ", out)
 	switch {
 	case IsBucket(in) && IsBucket(out):
 		return "bucket2bucket", nil
@@ -155,7 +153,6 @@ func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 		if strings.HasPrefix(info.Name(), pref) {
 			sn := strings.TrimPrefix(path, root+"/")
 			f := Item{Path: sn, Size: info.Size()}
-			fmt.Println("SSSNNN", sn)
 			items.List = append(items.List, f)
 		}
 
@@ -285,4 +282,42 @@ func Slice2Chan(items Items, c chan Item) {
 		c <- v
 	}
 	close(c)
+}
+
+func GetDirsSize(root string, dirs map[string]uint64, ts *uint64, wg *sync.WaitGroup, mu *sync.Mutex) (uint64, error) {
+	log.Println("starting scanning the local directory")
+
+	root, pref := RemoveStarsFromRoot(root)
+	var dirSize uint64
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		fmt.Printf("%q does not exist\n", root)
+		wg.Done()
+		return 0, err
+	}
+
+	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		if strings.HasPrefix(info.Name(), pref) {
+			dirSize = dirSize + uint64(info.Size())
+		}
+		return nil
+	})
+	if err != nil {
+		fmt.Printf("error walking the path %q: %v\n", root, err)
+	}
+	mu.Lock()
+	*ts = *ts + dirSize
+	dirs[root] = dirSize
+	mu.Unlock()
+	wg.Done()
+	// log.Printf("the size of dir is %d\n", dirSize)
+	return dirSize, nil
 }

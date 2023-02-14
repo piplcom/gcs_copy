@@ -5,4 +5,5 @@ type Args struct {
 	In   string
 	Out  string
 	Cred string
+	Check bool
 }

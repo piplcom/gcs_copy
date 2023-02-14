@@ -58,6 +58,7 @@ func main() {
 	if *api {
 		http.HandleFunc("/state", handleGetStatus)
 		http.HandleFunc("/run", handleRunCopy)
+		http.HandleFunc("/size", handleSize)
 		log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *bindip, *port), nil))
 		// log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", bindIP, bindPort), nil))
 	} else {
@@ -80,6 +81,7 @@ func main() {
 			In:   in,
 			Out:  out,
 			Cred: cred,
+			Check: check,
 
 		}
 		runCopy(Args)
@@ -96,7 +98,9 @@ func runCopy(args conf.Args) {
 	fmt.Printf("output:     %s\t\t\n", args.Out)
 	fmt.Printf("concurrent workers:     %d\t\t\n", args.Conc)
 	fmt.Printf("---------------------------------------------\n\n")
-
+	if args.Check {
+		fmt.Println("DRY RUN! (check option is checked)")
+	}
 
 	var ItemsToTransfer     ppaths.Items
 	var itemObjects = make(map[string]*ppaths.Items)
@@ -140,13 +144,14 @@ func runCopy(args conf.Args) {
 	// ppaths.FillItemsToTransfer(ppaths.AllFiles, ppaths.AllObjects)
 	go ppaths.Slice2Chan(ItemsToTransfer,*ItemsToTransferChan)
 	i, s := ppaths.ItemsSum(ItemsToTransfer)
+
 	if len(ItemsToTransfer.List) > 0 {
 		fmt.Printf("number of files to transfer: %v\ntotal size is: %v Bytes (%.2f) GB\n", i, s, float64(s)/1024/1024/1024)
 	} else {
 		fmt.Println("all files are the same size, there is nothing to transfer")
 	}
 
-	if !check {
+	if !args.Check {
 		fmt.Println("started transfer at: ", time.Now())
 		transfer.Transfer(args, ItemsToTransferChan, func2run)
 		fmt.Println("finished transfer at: ", time.Now())
