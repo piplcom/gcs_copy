@@ -23,6 +23,7 @@ var (
 	check                 bool
 	conc                  int
 	cred                  string
+	state                 string
 )
 
 var (
@@ -161,6 +162,7 @@ func runCopy(args conf.Args) {
 		fmt.Println("started transfer at: ", time.Now())
 		transfer.Transfer(args, ItemsToTransferChan, func2run)
 		fmt.Println("finished transfer at: ", time.Now())
+		state = "done"
 	}
 
 }

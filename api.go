@@ -11,6 +11,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type State struct {
+	ItemsNumberCurrent int
+	ItemsSizeCurrent   int64
+	State			   string
+}
+
 func handleRunCopy(w http.ResponseWriter, r *http.Request) {
 	var Args = conf.Args{
 		Conc:  conc,
@@ -27,7 +33,10 @@ func handleRunCopy(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 	}
 	log.Println(Args)
-	runCopy(Args)
+	state = "running"
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	go runCopy(Args)
 }
 
 func handleSize(w http.ResponseWriter, r *http.Request) {
@@ -71,13 +80,15 @@ func handleSize(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGetStatus(w http.ResponseWriter, r *http.Request) {
-	type State struct {
-		ItemsNumberCurrent int
-		ItemsSizeCurrent   int64
-	}
+	// type State struct {
+	// 	ItemsNumberCurrent int
+	// 	ItemsSizeCurrent   int64
+	// }
+
 	data := State{
 		ItemsNumberCurrent: ppaths.ItemsNumberCurrent,
 		ItemsSizeCurrent:   ppaths.ItemsSizeCurrent,
+		State:	state,	
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
