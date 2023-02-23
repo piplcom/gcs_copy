@@ -8,7 +8,7 @@ import (
 
 	// "log"
 	// "os"
-	"strings"
+
 	"sync"
 
 	"github.com/piplcom/gcs_copy/conf"
@@ -27,69 +27,39 @@ var (
 )
 
 var (
-	api = flag.Bool("api", false, "if true open port and get config via api")
-	port = flag.Int("port", 8082, "port to listen on")
+	api    = flag.Bool("api", false, "if true open port and get config via api")
+	port   = flag.Int("port", 8082, "port to listen on")
 	bindip = flag.String("bindip", "0.0.0.0", "ip to bind to")
-	fcred   = flag.String("cred", "", "credential path")
-	fin     = flag.String("in", "", "input dir path, starting with gs:// for bucket or just / for dir")
-	fout    = flag.String("out", "", "output dir path, starting with gs:// for bucket or just / for dir")
-	fconc   = flag.Int("conc", 64, "upload cuncurrency")
-	fcheck  = flag.Bool("check", false, "check only")
-	// log_level = flag.String("check", "INFO", "log level")
+	fcred  = flag.String("cred", "", "credential path")
+	fin    = flag.String("in", "", "input dir path, starting with gs:// for bucket or just / for dir")
+	fout   = flag.String("out", "", "output dir path, starting with gs:// for bucket or just / for dir")
+	fconc  = flag.Int("conc", 64, "upload cuncurrency")
+	fcheck = flag.Bool("check", false, "check only")
 )
 
-
 var (
-    version = "dev"
-    commit  = "none"
-    date    = "unknown"
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 func main() {
-	fmt.Println("test")
-	fmt.Println("version: ", Version)
-	fmt.Printf("my app %s, commit %s, built at %s", version, commit, date)
-	// log := log.New(os.Stdout, "MAIN : ", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
-	// var err error
-	// Formatter := new(log.TextFormatter)
-	// Formatter.TimestampFormat = "02-01-2006 15:04:05"
-	// Formatter.FullTimestamp = true
-	// log.SetFormatter(Formatter)
-
-	// config
+	fmt.Printf("my app %s, commit %s, built at %s\n", version, commit, date)
 
 	flag.Parse()
 
-
-	
 	if *api {
 		http.HandleFunc("/state", handleGetStatus)
 		http.HandleFunc("/run", handleRunCopy)
 		http.HandleFunc("/size", handleSize)
 		log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *bindip, *port), nil))
-		// log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", bindIP, bindPort), nil))
 	} else {
-		cred := *fcred
-		in := strings.TrimSuffix(*fin, "/")
-		out := strings.TrimSuffix(*fout, "/")
-		conc := *fconc
-		check = *fcheck
-	
-		// fmt.Println(args, check)
-		// direction, err := ppaths.Direction(*fin, *fout)
-		// log.Println()
-		// if err != nil {
-		// 	log.Fatal("wrong parameters type, should start with '/' or 'gs://'")
-		// }
-
-
 		var Args = conf.Args{
-			Conc: conc,
-			In:   in,
-			Out:  out,
-			Cred: cred,
-			Check: check,
-
+			Conc:  *fconc,
+			In:    *fin,
+			Out:   *fout,
+			Cred:  *fcred,
+			Check: *fcheck,
 		}
 		runCopy(Args)
 	}
@@ -97,7 +67,6 @@ func main() {
 }
 
 func runCopy(args conf.Args) {
-
 
 	fmt.Printf("---------------------------------------------\n")
 	fmt.Printf("credential: %s\t\t\n", args.Cred)
@@ -109,7 +78,7 @@ func runCopy(args conf.Args) {
 		fmt.Println("DRY RUN! (check option is checked)")
 	}
 
-	var ItemsToTransfer     ppaths.Items
+	var ItemsToTransfer ppaths.Items
 	var itemObjects = make(map[string]*ppaths.Items)
 	ppaths.AllFiles.List = nil
 	ppaths.AllObjects.List = nil
@@ -122,8 +91,8 @@ func runCopy(args conf.Args) {
 
 	var walkWg sync.WaitGroup
 	walkWg.Add(2)
-	ItemsToTransferChan :=  ppaths.NewItemsToTransferChan()
-	var func2run func(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item )
+	ItemsToTransferChan := ppaths.NewItemsToTransferChan()
+	var func2run func(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item)
 
 	switch {
 	case direction == "local2bucket":
@@ -149,7 +118,7 @@ func runCopy(args conf.Args) {
 	walkWg.Wait()
 	ppaths.FillItemsToTransfer(*itemObjects["in"], *itemObjects["out"], &ItemsToTransfer)
 	// ppaths.FillItemsToTransfer(ppaths.AllFiles, ppaths.AllObjects)
-	go ppaths.Slice2Chan(ItemsToTransfer,*ItemsToTransferChan)
+	go ppaths.Slice2Chan(ItemsToTransfer, *ItemsToTransferChan)
 	i, s := ppaths.ItemsSum(ItemsToTransfer)
 
 	if len(ItemsToTransfer.List) > 0 {
