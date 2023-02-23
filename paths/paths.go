@@ -56,17 +56,25 @@ func ExtrBucketNameFromPath(path string) string {
 	return mb.ReplaceAllString(path, "$1")
 }
 
+// func ExtrPrefixNameFromGCPPath(path string) string {
+// 	p := strings.TrimSuffix(path, "/")
+// 	mb := regexp.MustCompile("gs://([^/]*/?)(.*)")
+// 	// log.Println("FFFF", mb.ReplaceAllString(p, "$2"))
+// 	return mb.ReplaceAllString(p, "$2")
+// }
+
 func ExtrPrefixNameFromGCPPath(path string) string {
 	p := strings.TrimSuffix(path, "/")
 	mb := regexp.MustCompile("gs://([^/]*/?)(.*)")
-	return mb.ReplaceAllString(p, "$2")
+	t := mb.ReplaceAllString(p, "$2")
+
+	return t + "/"
 
 }
 
 func ExtrObjNameFromPath(path string) string {
-	p := strings.TrimSuffix(path, "/")
 	mp := regexp.MustCompile("gs://[^/]*/(.*)")
-	return mp.ReplaceAllString(p, "$1")
+	return mp.ReplaceAllString(path, "$1")
 }
 
 func IsDir(path string) bool {
@@ -81,14 +89,16 @@ func RemoveBucketNameFromPath(path string) string {
 
 func RemoveStarsFromRoot(root string) (root_path, prefix string) {
 	var pref string
+	mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
 	if strings.HasSuffix(root, "/**") || strings.HasSuffix(root, "/*") {
-		mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
-		root = mb.ReplaceAllString(root, "$1")
+		root = mb.ReplaceAllString(root, "$1/$2")
 	} else if strings.HasSuffix(root, "**") || strings.HasSuffix(root, "*") {
-		mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
 		pref = mb.ReplaceAllString(root, "$2")
 		root = mb.ReplaceAllString(root, "$1")
-	}
+	} 
+	
+	root = strings.TrimSuffix(root, "/")
+
 	return root, pref
 }
 
@@ -120,17 +130,6 @@ func Direction(in, out string) (string, error) {
 
 func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 	log.Println("starting scanning the local directory")
-	// Check if dir exists at all
-	// var pref string //prefix for glob
-
-	// if strings.HasSuffix(root, "/**") || strings.HasSuffix(root, "/*") {
-	// 	mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
-	// 	root = mb.ReplaceAllString(root, "$1")
-	// } else if strings.HasSuffix(root, "**") || strings.HasSuffix(root, "*") {
-	// 	mb := regexp.MustCompile(`^(.*)/(.*[^\*])+\*+$`)
-	// 	pref = mb.ReplaceAllString(root, "$2")
-	// 	root = mb.ReplaceAllString(root, "$1")
-	// }
 
 	root, pref := RemoveStarsFromRoot(root)
 
@@ -207,7 +206,7 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 			// first we put the paths in slice , putting stright to
 			// channel doesn't work good
 			// fmt.Printf("found : %q of size %d\n",strings.TrimPrefix(attrs.Name, prefix+"/"),attrs.Size)
-			f := Item{Path: strings.TrimPrefix(attrs.Name, prefix+"/"), Size: attrs.Size}
+			f := Item{Path: strings.TrimPrefix(attrs.Name, prefix), Size: attrs.Size}
 			items.List = append(items.List, f)
 		}
 	}
@@ -216,7 +215,8 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 	// sort.Slice(items.List, func(i, j int) bool { return items.List[j].Size < items.List[i].Size })
 	sortBySize(items)
 
-	log.Printf("found %d the files in the bucket\n", len(items.List))
+	log.Printf("found %d files in the bucket\n", len(items.List))
+
 	wg.Done()
 
 	return nil

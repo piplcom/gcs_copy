@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
 
 	// "log"
 	"os"
-	"path/filepath"
 
 	// "regexp"
 	"strings"
@@ -27,7 +27,7 @@ import (
 )
 
 // func Transfer(log *log.Logger, args conf.Args, direction string) {
-func Transfer(args conf.Args,c *chan ppaths.Item, f func(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item)) {
+func Transfer(args conf.Args, c *chan ppaths.Item, f func(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item)) {
 
 	var wg sync.WaitGroup
 	wg.Add(args.Conc)
@@ -72,18 +72,19 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 	//
 
 	dstPath := ppaths.RemoveBucketNameFromPath(args.Out)
+
 	for v := range *c {
 		err := retry.Do(
 			func() error {
 				obj := strings.TrimPrefix(dstPath+"/"+v.Path, "/")
+				log.Println("will transfer: ", obj)
 				writer := bh.Object(obj).NewWriter(ctx)
 				args.In, _ = ppaths.RemoveStarsFromRoot(args.In)
-				f, err := os.Open(args.In + "/" + v.Path)
+				f, err := os.Open(strings.TrimSuffix(args.In, "/") + "/" + v.Path)
 				if err != nil {
 					fmt.Println(err)
 					return err
 				}
-
 				w, err := io.Copy(writer, f)
 				if err != nil {
 					fmt.Println(err)
@@ -120,7 +121,6 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 }
 
 func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item) {
-
 	bucket := ppaths.ExtrBucketNameFromPath(args.In)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
 	defer cancel()
@@ -139,24 +139,25 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 	// fmt.Println("reading from chan: ", <-*c)
 
 	for v := range *c {
-		
+
 		err := retry.Do(
 			func() error {
-				
-				obj := ppaths.ExtrObjNameFromPath(args.In + "/" + v.Path)
-				toMkdir := filepath.Dir(args.Out + "/" + v.Path)
-				
+
+				// obj := ppaths.ExtrObjNameFromPath()
+				obj := ppaths.ExtrObjNameFromPath(strings.TrimSuffix(args.In, "/") + "/" + v.Path)
+				toMkdir := path.Dir(path.Join(args.Out, v.Path))
+
 				err := os.MkdirAll(toMkdir, os.ModePerm)
 				if err != nil {
 					fmt.Println(err)
 				}
-				
+
 				reader, err := bh.Object(obj).NewReader(ctx)
 				if err != nil {
 					log.Errorln(err)
 				}
-				
-				f, err := os.OpenFile(args.Out+"/"+v.Path, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+
+				f, err := os.OpenFile(args.Out+"/"+v.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 				if err != nil {
 					f.Close()
 					fmt.Println(err)
