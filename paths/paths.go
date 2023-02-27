@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	// "log"
+	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -18,7 +18,8 @@ import (
 	"path/filepath"
 
 	"cloud.google.com/go/storage"
-	log "github.com/sirupsen/logrus"
+	// log "github.com/sirupsen/logrus"
+	// "golang.org/x/exp/slog"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )

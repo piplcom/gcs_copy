@@ -4,17 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
-
-	// "log"
-	// "os"
-
+	"log"
 	"sync"
 
 	"github.com/piplcom/gcs_copy/conf"
 	ppaths "github.com/piplcom/gcs_copy/paths"
 	"github.com/piplcom/gcs_copy/transfer"
-	log "github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 var (
@@ -44,7 +42,10 @@ var (
 )
 
 func main() {
-	fmt.Printf("my app %s, commit %s, built at %s\n", version, commit, date)
+	textHandler := slog.NewTextHandler(os.Stdout)
+	logger := slog.New(textHandler)
+	slog.SetDefault(logger)
+	log.Printf("my app %s, commit %s, built at %s\n", version, commit, date)
 
 	flag.Parse()
 
