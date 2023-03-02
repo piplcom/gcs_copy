@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sync"
 
@@ -14,7 +13,7 @@ import (
 type State struct {
 	ItemsNumberCurrent int
 	ItemsSizeCurrent   int64
-	State			   string
+	State              string
 }
 
 func handleRunCopy(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +41,8 @@ func handleRunCopy(w http.ResponseWriter, r *http.Request) {
 func handleSize(w http.ResponseWriter, r *http.Request) {
 
 	type Data struct {
-		Dirs map[string]uint64
-		Total   uint64
+		Dirs  map[string]uint64
+		Total uint64
 	}
 
 	var data Data
@@ -72,7 +71,7 @@ func handleSize(w http.ResponseWriter, r *http.Request) {
 	data.Dirs = dirs
 	data.Total = totalSize
 
-	fmt.Printf("%v",dirs)
+	log.Printf("%v", dirs)
 	log.Printf("the total size is is %d\n", totalSize)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -88,7 +87,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	data := State{
 		ItemsNumberCurrent: ppaths.ItemsNumberCurrent,
 		ItemsSizeCurrent:   ppaths.ItemsSizeCurrent,
-		State:	state,	
+		State:              state,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

@@ -2,7 +2,6 @@ package transfer
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"path"
 
@@ -47,7 +46,7 @@ func Transfer(args conf.Args, c *chan ppaths.Item, f func(args conf.Args, wg *sy
 
 	wg.Wait()
 
-	fmt.Printf("\nDone All\n")
+	log.Printf("\nDone All\n")
 
 }
 
@@ -82,16 +81,16 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 				args.In, _ = ppaths.RemoveStarsFromRoot(args.In)
 				f, err := os.Open(strings.TrimSuffix(args.In, "/") + "/" + v.Path)
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 					return err
 				}
 				w, err := io.Copy(writer, f)
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 					return err
 				}
 				if w != v.Size {
-					fmt.Printf("expected to transfer file of size %d but got %d", v.Size, w)
+					log.Printf("expected to transfer file of size %d but got %d", v.Size, w)
 					return err
 				}
 
@@ -101,7 +100,7 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 				ppaths.ItemsSizeCurrent = ppaths.ItemsSizeCurrent - v.Size
 				m.Unlock()
 
-				fmt.Printf("\r\033[K%d files left to process size is %.2fG",
+				log.Printf("\r\033[K%d files left to process size is %.2fG",
 					ppaths.ItemsNumberCurrent,
 					float64(ppaths.ItemsSizeCurrent)/1024/1024/1024)
 
@@ -136,7 +135,7 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 	}
 	defer client.Close()
 	//
-	// fmt.Println("reading from chan: ", <-*c)
+	// log.Println("reading from chan: ", <-*c)
 
 	for v := range *c {
 
@@ -149,7 +148,7 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 
 				err := os.MkdirAll(toMkdir, os.ModePerm)
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 				}
 
 				reader, err := bh.Object(obj).NewReader(ctx)
@@ -160,11 +159,17 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 				f, err := os.OpenFile(args.Out+"/"+v.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 				if err != nil {
 					f.Close()
-					fmt.Println(err)
+					log.Println(err)
 				}
 				w, err := io.Copy(f, reader)
 				if err != nil {
 					log.Fatalln(err)
+					return err
+				}
+
+				err = f.Sync()
+				if err != nil {
+					log.Fatalln("counld't sync file to disk", err)
 					return err
 				}
 
@@ -179,7 +184,7 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 				ppaths.ItemsSizeCurrent = ppaths.ItemsSizeCurrent - v.Size
 				m.Unlock()
 
-				fmt.Printf("\r\033[K%d files left to process size is %.2fG",
+				log.Printf("\r\033[K%d files left to process size is %.2fG",
 					ppaths.ItemsNumberCurrent,
 					float64(ppaths.ItemsSizeCurrent)/1024/1024/1024)
 

@@ -96,8 +96,8 @@ func RemoveStarsFromRoot(root string) (root_path, prefix string) {
 	} else if strings.HasSuffix(root, "**") || strings.HasSuffix(root, "*") {
 		pref = mb.ReplaceAllString(root, "$2")
 		root = mb.ReplaceAllString(root, "$1")
-	} 
-	
+	}
+
 	root = strings.TrimSuffix(root, "/")
 
 	return root, pref
@@ -130,19 +130,19 @@ func Direction(in, out string) (string, error) {
 // }
 
 func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
-	log.Println("starting scanning the local directory")
+	log.Printf("starting scanning the local directory")
 
 	root, pref := RemoveStarsFromRoot(root)
 
 	if _, err := os.Stat(root); os.IsNotExist(err) {
-		fmt.Printf("%q does not exist, will create it\n", root)
+		log.Printf("%q does not exist, will create it\n", root)
 		wg.Done()
 		return nil
 	}
 
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
-			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
+			log.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
 		}
 
@@ -159,7 +159,7 @@ func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 		return nil
 	})
 	if err != nil {
-		fmt.Printf("error walking the path %q: %v\n", root, err)
+		log.Printf("error walking the path %q: %v\n", root, err)
 	}
 
 	sortBySize(items)
@@ -194,19 +194,19 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 		Prefix: prefix,
 	})
 	// itterObj.PageInfo().MaxSize = 10000
-	// fmt.Println(fmt.Printf("%+v\n", itterObj.PageInfo()))
+	// log.Println(log.Printf("%+v\n", itterObj.PageInfo()))
 	for i := 0; ; i++ {
 		attrs, err := itterObj.Next()
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
-			fmt.Printf("Bucket(%q).Objects(): %v", bucket, err)
+			log.Printf("Bucket(%q).Objects(): %v", bucket, err)
 		}
 		if !strings.HasSuffix(attrs.Name, "/") {
 			// first we put the paths in slice , putting stright to
 			// channel doesn't work good
-			// fmt.Printf("found : %q of size %d\n",strings.TrimPrefix(attrs.Name, prefix+"/"),attrs.Size)
+			// log.Printf("found : %q of size %d\n",strings.TrimPrefix(attrs.Name, prefix+"/"),attrs.Size)
 			f := Item{Path: strings.TrimPrefix(attrs.Name, prefix), Size: attrs.Size}
 			items.List = append(items.List, f)
 		}
@@ -291,14 +291,14 @@ func GetDirsSize(root string, dirs map[string]uint64, ts *uint64, wg *sync.WaitG
 	root, pref := RemoveStarsFromRoot(root)
 	var dirSize uint64
 	if _, err := os.Stat(root); os.IsNotExist(err) {
-		fmt.Printf("%q does not exist\n", root)
+		log.Printf("%q does not exist\n", root)
 		wg.Done()
 		return 0, err
 	}
 
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
-			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
+			log.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
 		}
 
@@ -312,7 +312,7 @@ func GetDirsSize(root string, dirs map[string]uint64, ts *uint64, wg *sync.WaitG
 		return nil
 	})
 	if err != nil {
-		fmt.Printf("error walking the path %q: %v\n", root, err)
+		log.Printf("error walking the path %q: %v\n", root, err)
 	}
 	mu.Lock()
 	*ts = *ts + dirSize

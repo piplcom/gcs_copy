@@ -1,13 +1,15 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
-	"time"
-	"log"
 	"sync"
+	"time"
 
 	"github.com/piplcom/gcs_copy/conf"
 	ppaths "github.com/piplcom/gcs_copy/paths"
@@ -40,11 +42,25 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
+var logger *slog.Logger
 
 func main() {
-	textHandler := slog.NewTextHandler(os.Stdout)
-	logger := slog.New(textHandler)
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Println(err)
+	}
+	ip, err := getIP()
+	if err != nil {
+		log.Println(err)
+	}
+	textHandler := slog.NewTextHandler(os.Stdout).WithAttrs([]slog.Attr{
+		slog.String("app", "gcs_copy"),
+		slog.String("hostname", hostname),
+		slog.String("ip", ip)})
+		
+	logger = slog.New(textHandler)
 	slog.SetDefault(logger)
+
 	log.Printf("my app %s, commit %s, built at %s\n", version, commit, date)
 
 	flag.Parse()
@@ -69,14 +85,14 @@ func main() {
 
 func runCopy(args conf.Args) {
 
-	fmt.Printf("---------------------------------------------\n")
-	fmt.Printf("credential: %s\t\t\n", args.Cred)
-	fmt.Printf("input:      %s\t\t\n", args.In)
-	fmt.Printf("output:     %s\t\t\n", args.Out)
-	fmt.Printf("concurrent workers:     %d\t\t\n", args.Conc)
-	fmt.Printf("---------------------------------------------\n\n")
+	log.Printf("---------------------------------------------\n")
+	log.Printf("credential: %s\t\t\n", args.Cred)
+	log.Printf("input:      %s\t\t\n", args.In)
+	log.Printf("output:     %s\t\t\n", args.Out)
+	log.Printf("concurrent workers:     %d\t\t\n", args.Conc)
+	log.Printf("---------------------------------------------\n\n")
 	if args.Check {
-		fmt.Println("DRY RUN! (check option is checked)")
+		log.Println("DRY RUN! (check option is checked)")
 	}
 
 	var ItemsToTransfer ppaths.Items
@@ -110,9 +126,9 @@ func runCopy(args conf.Args) {
 	}
 
 	log.Println("started at: ", time.Now())
-	fmt.Println("we will scan now local dir and the bucket, might take time depending on number of files")
-	fmt.Println("even half an hour for millions of files")
-	fmt.Println("for small ammount of files whould take few seconds")
+	log.Println("we will scan now local dir and the bucket, might take time depending on number of files")
+	log.Println("even half an hour for millions of files")
+	log.Println("for small ammount of files whould take few seconds")
 
 	go ppaths.PWalkDir(localRoot, &ppaths.AllFiles, &walkWg)
 	go ppaths.WalkBucket(bucketRoot, &ppaths.AllObjects, &walkWg, *fcred)
@@ -123,16 +139,53 @@ func runCopy(args conf.Args) {
 	i, s := ppaths.ItemsSum(ItemsToTransfer)
 
 	if len(ItemsToTransfer.List) > 0 {
-		fmt.Printf("number of files to transfer: %v\ntotal size is: %v Bytes (%.2f) GB\n", i, s, float64(s)/1024/1024/1024)
+		log.Printf("number of files to transfer: %v\ntotal size is: %v Bytes (%.2f) GB\n", i, s, float64(s)/1024/1024/1024)
 	} else {
-		fmt.Println("all files are the same size, there is nothing to transfer")
+		log.Println("all files are the same size, there is nothing to transfer")
 	}
 
 	if !args.Check {
-		fmt.Println("started transfer at: ", time.Now())
+		log.Println("started transfer at: ", time.Now())
 		transfer.Transfer(args, ItemsToTransferChan, func2run)
-		fmt.Println("finished transfer at: ", time.Now())
+		log.Println("finished transfer at: ", time.Now())
 		state = "done"
 	}
 
+}
+
+func getIP() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue // interface down
+		}
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue // loopback interface
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return "", err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue // not an ipv4 address
+			}
+			return ip.String(), nil
+		}
+	}
+	return "", errors.New("are you connected to the network?")
 }
