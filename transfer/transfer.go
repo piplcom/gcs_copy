@@ -100,7 +100,7 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 				ppaths.ItemsSizeCurrent = ppaths.ItemsSizeCurrent - v.Size
 				m.Unlock()
 
-				log.Printf("\r\033[K%d files left to process size is %.2fG",
+				log.Printf("%d files left to process size is %.2fG",
 					ppaths.ItemsNumberCurrent,
 					float64(ppaths.ItemsSizeCurrent)/1024/1024/1024)
 
@@ -127,7 +127,7 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 	// TODO make function again
 	client, err := storage.NewClient(ctx, option.WithCredentialsFile(args.Cred))
 	if err != nil {
-		log.Fatalln("error creating a client: ", err)
+		log.Println("error creating a client: ", err)
 	}
 	bh := client.Bucket(bucket)
 	if _, err = bh.Attrs(ctx); err != nil {
@@ -163,13 +163,13 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 				}
 				w, err := io.Copy(f, reader)
 				if err != nil {
-					log.Fatalln(err)
+					log.Printf("failed to copy a file %s", err)
 					return err
 				}
 
 				err = f.Sync()
 				if err != nil {
-					log.Fatalln("counld't sync file to disk", err)
+					log.Printf("counld't sync file %s to disk", err)
 					return err
 				}
 
@@ -184,7 +184,7 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 				ppaths.ItemsSizeCurrent = ppaths.ItemsSizeCurrent - v.Size
 				m.Unlock()
 
-				log.Printf("\r\033[K%d files left to process size is %.2fG",
+				log.Printf("\r\033[K%d files of total size %.2fG left to process",
 					ppaths.ItemsNumberCurrent,
 					float64(ppaths.ItemsSizeCurrent)/1024/1024/1024)
 

@@ -57,12 +57,6 @@ func ExtrBucketNameFromPath(path string) string {
 	return mb.ReplaceAllString(path, "$1")
 }
 
-// func ExtrPrefixNameFromGCPPath(path string) string {
-// 	p := strings.TrimSuffix(path, "/")
-// 	mb := regexp.MustCompile("gs://([^/]*/?)(.*)")
-// 	// log.Println("FFFF", mb.ReplaceAllString(p, "$2"))
-// 	return mb.ReplaceAllString(p, "$2")
-// }
 
 func ExtrPrefixNameFromGCPPath(path string) string {
 	p := strings.TrimSuffix(path, "/")
@@ -118,16 +112,6 @@ func Direction(in, out string) (string, error) {
 	}
 }
 
-// func tdimeFilesList() []File {
-// 	var l []File
-// 	for i := 0; i <= 255; i++ {
-// 		for j := 0; j <= 4095; j++ {
-// 			a := fmt.Sprintf("/%02s/%03s", strconv.FormatInt(int64(i), 16), strconv.FormatInt(int64(j), 16))
-// 			l = append(l, File{a, 1})
-// 		}
-// 	}
-// 	return l
-// }
 
 func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 	log.Printf("starting scanning the local directory")
@@ -193,8 +177,6 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 	itterObj := client.Bucket(bucket).Objects(ctx, &storage.Query{
 		Prefix: prefix,
 	})
-	// itterObj.PageInfo().MaxSize = 10000
-	// log.Println(log.Printf("%+v\n", itterObj.PageInfo()))
 	for i := 0; ; i++ {
 		attrs, err := itterObj.Next()
 		if err == iterator.Done {
@@ -204,16 +186,11 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 			log.Printf("Bucket(%q).Objects(): %v", bucket, err)
 		}
 		if !strings.HasSuffix(attrs.Name, "/") {
-			// first we put the paths in slice , putting stright to
-			// channel doesn't work good
-			// log.Printf("found : %q of size %d\n",strings.TrimPrefix(attrs.Name, prefix+"/"),attrs.Size)
 			f := Item{Path: strings.TrimPrefix(attrs.Name, prefix), Size: attrs.Size}
 			items.List = append(items.List, f)
 		}
 	}
 
-	// Sorting files by size from big to small
-	// sort.Slice(items.List, func(i, j int) bool { return items.List[j].Size < items.List[i].Size })
 	sortBySize(items)
 
 	log.Printf("found %d files in the bucket\n", len(items.List))
@@ -250,21 +227,12 @@ func FillItemsToTransfer(in Items, out Items, i2t *Items) {
 		checkMap[v.Path] = v.Size
 	}
 
-	// log.Println("started adding diff to list")
 	for _, v := range in.List {
-
 		if size, ok := checkMap[v.Path]; !ok || size != v.Size {
-			// log.Printf("adding  to list because %d != %d",size, v.Size)
 			i2t.List = append(i2t.List, v)
-			//do something here
 		}
-		// var a = TransferCheck(out.List, v)
-		// if a.Path != "" {
-		// 	ItemsToTransfer.List = append(ItemsToTransfer.List, a)
-		// }
-
 	}
-	// log.Println("done adding diff to list")
+
 
 }
 
@@ -319,6 +287,6 @@ func GetDirsSize(root string, dirs map[string]uint64, ts *uint64, wg *sync.WaitG
 	dirs[root] = dirSize
 	mu.Unlock()
 	wg.Done()
-	// log.Printf("the size of dir is %d\n", dirSize)
+
 	return dirSize, nil
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -8,7 +9,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/piplcom/gcs_copy/conf"
@@ -57,7 +60,7 @@ func main() {
 		slog.String("app", "gcs_copy"),
 		slog.String("hostname", hostname),
 		slog.String("ip", ip)})
-		
+
 	logger = slog.New(textHandler)
 	slog.SetDefault(logger)
 
@@ -69,7 +72,30 @@ func main() {
 		http.HandleFunc("/state", handleGetStatus)
 		http.HandleFunc("/run", handleRunCopy)
 		http.HandleFunc("/size", handleSize)
-		log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *bindip, *port), nil))
+	
+		server := &http.Server{
+			Addr: fmt.Sprintf("%s:%d", *bindip, *port),
+		}
+
+		go func() {
+			if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+				log.Fatalf("HTTP server error: %v", err)
+			}
+			log.Println("Stopped serving new connections.")
+		}()
+
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+
+		shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownRelease()
+
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Fatalf("HTTP shutdown error: %v", err)
+		}
+		log.Println("Graceful shutdown complete.")
+
 	} else {
 		var Args = conf.Args{
 			Conc:  *fconc,
@@ -85,12 +111,8 @@ func main() {
 
 func runCopy(args conf.Args) {
 
-	log.Printf("---------------------------------------------\n")
-	log.Printf("credential: %s\t\t\n", args.Cred)
-	log.Printf("input:      %s\t\t\n", args.In)
-	log.Printf("output:     %s\t\t\n", args.Out)
-	log.Printf("concurrent workers:     %d\t\t\n", args.Conc)
-	log.Printf("---------------------------------------------\n\n")
+	log.Printf("starting gcs_copy with credential: %s, input: %s, output: %s, conc: %d\n", args.Cred, args.In, args.Out, args.Conc)
+
 	if args.Check {
 		log.Println("DRY RUN! (check option is checked)")
 	}
@@ -125,10 +147,7 @@ func runCopy(args conf.Args) {
 		func2run = transfer.CreateDownloadRoutines
 	}
 
-	log.Println("started at: ", time.Now())
-	log.Println("we will scan now local dir and the bucket, might take time depending on number of files")
-	log.Println("even half an hour for millions of files")
-	log.Println("for small ammount of files whould take few seconds")
+	log.Println("gcs_copy started at: ", time.Now())
 
 	go ppaths.PWalkDir(localRoot, &ppaths.AllFiles, &walkWg)
 	go ppaths.WalkBucket(bucketRoot, &ppaths.AllObjects, &walkWg, *fcred)
