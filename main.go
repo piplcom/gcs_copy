@@ -14,11 +14,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/piplcom/gcs_copy/conf"
-	ppaths "github.com/piplcom/gcs_copy/paths"
-	"github.com/piplcom/gcs_copy/transfer"
 	"golang.org/x/exp/slog"
 )
+
+type Args struct {
+	Conc  int
+	In    string
+	Out   string
+	Cred  string
+	Check bool
+}
 
 var (
 	bucketRoot, localRoot string
@@ -26,8 +31,17 @@ var (
 	check                 bool
 	conc                  int
 	cred                  string
-	state                 string
+	// state                 string
 )
+
+type State struct {
+	ItemsNumberCurrent int
+	ItemsSizeCurrent   int64
+	State              string
+	Error              string
+}
+
+var Pstate State
 
 var (
 	api    = flag.Bool("api", false, "if true open port and get config via api")
@@ -45,6 +59,7 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
+
 var logger *slog.Logger
 
 func main() {
@@ -72,7 +87,7 @@ func main() {
 		http.HandleFunc("/state", handleGetStatus)
 		http.HandleFunc("/run", handleRunCopy)
 		http.HandleFunc("/size", handleSize)
-	
+
 		server := &http.Server{
 			Addr: fmt.Sprintf("%s:%d", *bindip, *port),
 		}
@@ -97,7 +112,7 @@ func main() {
 		log.Println("Graceful shutdown complete.")
 
 	} else {
-		var Args = conf.Args{
+		var Args = Args{
 			Conc:  *fconc,
 			In:    *fin,
 			Out:   *fout,
@@ -109,7 +124,7 @@ func main() {
 
 }
 
-func runCopy(args conf.Args) {
+func runCopy(args Args) {
 
 	log.Printf("starting gcs_copy with credential: %s, input: %s, output: %s, conc: %d\n", args.Cred, args.In, args.Out, args.Conc)
 
@@ -117,11 +132,11 @@ func runCopy(args conf.Args) {
 		log.Println("DRY RUN! (check option is checked)")
 	}
 
-	var ItemsToTransfer ppaths.Items
-	var itemObjects = make(map[string]*ppaths.Items)
-	ppaths.AllFiles.List = nil
-	ppaths.AllObjects.List = nil
-	direction, err := ppaths.Direction(args.In, args.Out)
+	var ItemsToTransfer Items
+	var itemObjects = make(map[string]*Items)
+	AllFiles.List = nil
+	AllObjects.List = nil
+	direction, err := Direction(args.In, args.Out)
 	if err != nil {
 		log.Println("outer in", args.In)
 		log.Println("outer out", args.Out)
@@ -130,32 +145,32 @@ func runCopy(args conf.Args) {
 
 	var walkWg sync.WaitGroup
 	walkWg.Add(2)
-	ItemsToTransferChan := ppaths.NewItemsToTransferChan()
-	var func2run func(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item)
+	ItemsToTransferChan := NewItemsToTransferChan()
+	var func2run func(args Args, wg *sync.WaitGroup, c *chan Item)
 
 	switch {
 	case direction == "local2bucket":
 		localRoot, bucketRoot = args.In, args.Out
 
-		itemObjects["in"] = &ppaths.AllFiles
-		itemObjects["out"] = &ppaths.AllObjects
-		func2run = transfer.CreateUploadRoutines
+		itemObjects["in"] = &AllFiles
+		itemObjects["out"] = &AllObjects
+		func2run = CreateUploadRoutines
 	case direction == "bucket2local":
 		bucketRoot, localRoot = args.In, args.Out
-		itemObjects["in"] = &ppaths.AllObjects
-		itemObjects["out"] = &ppaths.AllFiles
-		func2run = transfer.CreateDownloadRoutines
+		itemObjects["in"] = &AllObjects
+		itemObjects["out"] = &AllFiles
+		func2run = CreateDownloadRoutines
 	}
 
 	log.Println("gcs_copy started at: ", time.Now())
 
-	go ppaths.PWalkDir(localRoot, &ppaths.AllFiles, &walkWg)
-	go ppaths.WalkBucket(bucketRoot, &ppaths.AllObjects, &walkWg, *fcred)
+	go PWalkDir(localRoot, &AllFiles, &walkWg)
+	go WalkBucket(bucketRoot, &AllObjects, &walkWg, *fcred)
 	walkWg.Wait()
-	ppaths.FillItemsToTransfer(*itemObjects["in"], *itemObjects["out"], &ItemsToTransfer)
+	FillItemsToTransfer(*itemObjects["in"], *itemObjects["out"], &ItemsToTransfer)
 	// ppaths.FillItemsToTransfer(ppaths.AllFiles, ppaths.AllObjects)
-	go ppaths.Slice2Chan(ItemsToTransfer, *ItemsToTransferChan)
-	i, s := ppaths.ItemsSum(ItemsToTransfer)
+	go Slice2Chan(ItemsToTransfer, *ItemsToTransferChan)
+	i, s := ItemsSum(ItemsToTransfer)
 
 	if len(ItemsToTransfer.List) > 0 {
 		log.Printf("number of files to transfer: %v\ntotal size is: %v Bytes (%.2f) GB\n", i, s, float64(s)/1024/1024/1024)
@@ -165,9 +180,9 @@ func runCopy(args conf.Args) {
 
 	if !args.Check {
 		log.Println("started transfer at: ", time.Now())
-		transfer.Transfer(args, ItemsToTransferChan, func2run)
+		Transfer(args, ItemsToTransferChan, func2run)
 		log.Println("finished transfer at: ", time.Now())
-		state = "done"
+		Pstate.State = "done"
 	}
 
 }

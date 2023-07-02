@@ -5,19 +5,12 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/piplcom/gcs_copy/conf"
-	ppaths "github.com/piplcom/gcs_copy/paths"
+	// "github.com/piplcom/gcs_copy/conf"
 	log "github.com/sirupsen/logrus"
 )
 
-type State struct {
-	ItemsNumberCurrent int
-	ItemsSizeCurrent   int64
-	State              string
-}
-
 func handleRunCopy(w http.ResponseWriter, r *http.Request) {
-	var Args = conf.Args{
+	var Args = Args{
 		Conc:  conc,
 		In:    in,
 		Out:   out,
@@ -32,7 +25,7 @@ func handleRunCopy(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 	}
 	log.Println(Args)
-	state = "running"
+	Pstate.State = "running"
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	go runCopy(Args)
@@ -61,7 +54,7 @@ func handleSize(w http.ResponseWriter, r *http.Request) {
 	for _, v := range sizePaths {
 
 		// fmt.Fprintf(w, "%s\n", v)
-		go ppaths.GetDirsSize(v, dirs, &totalSize, &walkWg, &mu)
+		go GetDirsSize(v, dirs, &totalSize, &walkWg, &mu)
 		if err != nil {
 			log.Error(err)
 		}
@@ -85,9 +78,10 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	data := State{
-		ItemsNumberCurrent: ppaths.ItemsNumberCurrent,
-		ItemsSizeCurrent:   ppaths.ItemsSizeCurrent,
-		State:              state,
+		ItemsNumberCurrent: ItemsNumberCurrent,
+		ItemsSizeCurrent:   ItemsSizeCurrent,
+		State:              Pstate.State,
+		Error:              Pstate.Error,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

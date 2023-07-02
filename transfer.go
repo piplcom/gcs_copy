@@ -1,14 +1,11 @@
-package transfer
+package main
 
 import (
 	"context"
 	"io"
 	"path"
 
-	// "log"
 	"os"
-
-	// "regexp"
 	"strings"
 	"sync"
 	"time"
@@ -16,17 +13,12 @@ import (
 	"cloud.google.com/go/storage"
 	retry "github.com/avast/retry-go"
 
-	// "github.com/pkg/errors"
-	"github.com/piplcom/gcs_copy/conf"
-	ppaths "github.com/piplcom/gcs_copy/paths"
-	"google.golang.org/api/option"
-
-	// "github.com/schollz/progressbar/v3"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/api/option"
 )
 
 // func Transfer(log *log.Logger, args conf.Args, direction string) {
-func Transfer(args conf.Args, c *chan ppaths.Item, f func(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item)) {
+func Transfer(args Args, c *chan Item, f func(args Args, wg *sync.WaitGroup, c *chan Item)) {
 
 	var wg sync.WaitGroup
 	wg.Add(args.Conc)
@@ -35,23 +27,13 @@ func Transfer(args conf.Args, c *chan ppaths.Item, f func(args conf.Args, wg *sy
 		go f(args, &wg, c)
 	}
 
-	// Option for progress bar
-	// max := ppaths.ItemsSizeCurrent
-	// bar := progressbar.Default(max)
-	// for i := int64(0); i < max;{
-	// 	i = max - ppaths.ItemsSizeCurrent
-	// 	bar.Set64(max - ppaths.ItemsSizeCurrent)
-	// 	time.Sleep(time.Second)
-	// }
-
 	wg.Wait()
-
 	log.Printf("\nDone All\n")
 
 }
 
-func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item) {
-	bucket := ppaths.ExtrBucketNameFromPath(args.Out)
+func CreateUploadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
+	bucket := ExtrBucketNameFromPath(args.Out)
 	// log.Infoln("bucket before: ", bucket)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
@@ -61,16 +43,24 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 	client, err := storage.NewClient(ctx, option.WithCredentialsFile(args.Cred))
 
 	if err != nil {
-		log.Fatalln("error creating a client: ", err)
+		log.Println("error creating a client")
+		log.Println(err)
+		Pstate.State = "error"
+		Pstate.Error = err.Error()
 	}
+
 	bh := client.Bucket(bucket)
 	if _, err = bh.Attrs(ctx); err != nil {
-		log.Fatalln("can't get bucket attributes: ", err)
+		log.Println("can't get bucket attributes for bucket: ", bucket)
+		log.Println(err)
+		Pstate.State = "error"
+		Pstate.Error = err.Error()
+		
 	}
 	defer client.Close()
 	//
 
-	dstPath := ppaths.RemoveBucketNameFromPath(args.Out)
+	dstPath := RemoveBucketNameFromPath(args.Out)
 
 	for v := range *c {
 		err := retry.Do(
@@ -78,7 +68,7 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 				obj := strings.TrimPrefix(dstPath+"/"+v.Path, "/")
 				log.Println("will transfer: ", obj)
 				writer := bh.Object(obj).NewWriter(ctx)
-				args.In, _ = ppaths.RemoveStarsFromRoot(args.In)
+				args.In, _ = RemoveStarsFromRoot(args.In)
 				f, err := os.Open(strings.TrimSuffix(args.In, "/") + "/" + v.Path)
 				if err != nil {
 					log.Println(err)
@@ -96,13 +86,13 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 
 				var m sync.Mutex
 				m.Lock()
-				ppaths.ItemsNumberCurrent--
-				ppaths.ItemsSizeCurrent = ppaths.ItemsSizeCurrent - v.Size
+				ItemsNumberCurrent--
+				ItemsSizeCurrent = ItemsSizeCurrent - v.Size
 				m.Unlock()
 
 				log.Printf("%d files left to process size is %.2fG",
-					ppaths.ItemsNumberCurrent,
-					float64(ppaths.ItemsSizeCurrent)/1024/1024/1024)
+					ItemsNumberCurrent,
+					float64(ItemsSizeCurrent)/1024/1024/1024)
 
 				writer.Close()
 				f.Close()
@@ -111,6 +101,10 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 			retry.Attempts(5))
 		if err != nil {
 			log.Println(err)
+			log.Println("errur uploading")
+			log.Println(err)
+			Pstate.State = "error"
+			Pstate.Error = err.Error()
 		}
 
 	}
@@ -119,19 +113,25 @@ func CreateUploadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Ite
 
 }
 
-func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.Item) {
-	bucket := ppaths.ExtrBucketNameFromPath(args.In)
+func CreateDownloadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
+	bucket := ExtrBucketNameFromPath(args.In)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
 	defer cancel()
 
 	// TODO make function again
 	client, err := storage.NewClient(ctx, option.WithCredentialsFile(args.Cred))
 	if err != nil {
-		log.Println("error creating a client: ", err)
+		log.Println("error creating a client")
+		log.Println(err)
+		Pstate.State = "error"
+		Pstate.Error = err.Error()
 	}
 	bh := client.Bucket(bucket)
 	if _, err = bh.Attrs(ctx); err != nil {
-		log.Fatalln("can't get bucket attributes: ", err)
+		log.Println("can't get bucket attributes: for bucket: ",bucket)
+		log.Println(err)
+		Pstate.State = "error"
+		Pstate.Error = err.Error()
 	}
 	defer client.Close()
 	//
@@ -143,7 +143,7 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 			func() error {
 
 				// obj := ppaths.ExtrObjNameFromPath()
-				obj := ppaths.ExtrObjNameFromPath(strings.TrimSuffix(args.In, "/") + "/" + v.Path)
+				obj := ExtrObjNameFromPath(strings.TrimSuffix(args.In, "/") + "/" + v.Path)
 				toMkdir := path.Dir(path.Join(args.Out, v.Path))
 
 				err := os.MkdirAll(toMkdir, os.ModePerm)
@@ -180,13 +180,13 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 
 				var m sync.Mutex
 				m.Lock()
-				ppaths.ItemsNumberCurrent--
-				ppaths.ItemsSizeCurrent = ppaths.ItemsSizeCurrent - v.Size
+				ItemsNumberCurrent--
+				ItemsSizeCurrent = ItemsSizeCurrent - v.Size
 				m.Unlock()
 
 				log.Printf("\r\033[K%d files of total size %.2fG left to process",
-					ppaths.ItemsNumberCurrent,
-					float64(ppaths.ItemsSizeCurrent)/1024/1024/1024)
+					ItemsNumberCurrent,
+					float64(ItemsSizeCurrent)/1024/1024/1024)
 
 				f.Close()
 				reader.Close()
@@ -196,7 +196,10 @@ func CreateDownloadRoutines(args conf.Args, wg *sync.WaitGroup, c *chan ppaths.I
 			},
 			retry.Attempts(5))
 		if err != nil {
+			log.Println("errur downloading")
 			log.Println(err)
+			Pstate.State = "error"
+			Pstate.Error = err.Error()
 		}
 	}
 	wg.Done()

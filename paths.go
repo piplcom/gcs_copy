@@ -1,4 +1,4 @@
-package paths
+package main
 
 import (
 	"context"
@@ -57,7 +57,6 @@ func ExtrBucketNameFromPath(path string) string {
 	return mb.ReplaceAllString(path, "$1")
 }
 
-
 func ExtrPrefixNameFromGCPPath(path string) string {
 	p := strings.TrimSuffix(path, "/")
 	mb := regexp.MustCompile("gs://([^/]*/?)(.*)")
@@ -112,7 +111,6 @@ func Direction(in, out string) (string, error) {
 	}
 }
 
-
 func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 	log.Printf("starting scanning the local directory")
 
@@ -164,13 +162,19 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 	// TODO make function again
 	client, err := storage.NewClient(ctx, option.WithCredentialsFile(cred))
 	if err != nil {
-		log.Fatalln("error creating a client: ", err)
+		log.Println("error creating a client")
+		log.Println(err)
+		Pstate.State = "error"
+		Pstate.Error = err.Error()
 		return err
 	}
 	defer client.Close()
 	bh := client.Bucket(bucket)
 	if _, err = bh.Attrs(ctx); err != nil {
-		log.Fatalln("can't get bucket attributes: ", err)
+		log.Println("can't get bucket attributes")
+		log.Println(err)
+		Pstate.State = "error"
+		Pstate.Error = err.Error()
 		return err
 	}
 
@@ -192,11 +196,8 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 	}
 
 	sortBySize(items)
-
 	log.Printf("found %d files in the bucket\n", len(items.List))
-
 	wg.Done()
-
 	return nil
 
 }
@@ -232,7 +233,6 @@ func FillItemsToTransfer(in Items, out Items, i2t *Items) {
 			i2t.List = append(i2t.List, v)
 		}
 	}
-
 
 }
 
