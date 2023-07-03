@@ -31,7 +31,6 @@ var (
 	check                 bool
 	conc                  int
 	cred                  string
-	// state                 string
 )
 
 type State struct {
@@ -78,10 +77,12 @@ func main() {
 
 	logger = slog.New(textHandler)
 	slog.SetDefault(logger)
+	flag.Parse()
 
 	log.Printf("my app %s, commit %s, built at %s\n", version, commit, date)
 
-	flag.Parse()
+
+
 
 	if *api {
 		http.HandleFunc("/state", handleGetStatus)
@@ -125,6 +126,16 @@ func main() {
 }
 
 func runCopy(args Args) {
+
+	go func() {
+		diskTicker := time.NewTicker(time.Minute * 1)
+		for ; true; <-diskTicker.C {
+			err := SetErrorStateIfNoSpace()
+			if err != nil{
+				log.Println(err)
+			}
+		}
+	}()
 
 	log.Printf("starting gcs_copy with credential: %s, input: %s, output: %s, conc: %d\n", args.Cred, args.In, args.Out, args.Conc)
 

@@ -7,6 +7,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2
+	golang.org/x/sys v0.1.0
 	google.golang.org/api v0.46.0
 )
 
@@ -21,7 +22,6 @@ require (
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/net v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20210427180440-81ed05c6b58c // indirect
-	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/tools v0.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"log"
@@ -18,6 +19,8 @@ import (
 	"path/filepath"
 
 	"cloud.google.com/go/storage"
+	"golang.org/x/sys/unix"
+
 	// log "github.com/sirupsen/logrus"
 	// "golang.org/x/exp/slog"
 	"google.golang.org/api/iterator"
@@ -46,6 +49,11 @@ type Item struct {
 
 type Items struct {
 	List []Item
+}
+
+type Disk struct {
+	Mount     string
+	FreeBytes uint64
 }
 
 func IsBucket(path string) bool {
@@ -289,4 +297,36 @@ func GetDirsSize(root string, dirs map[string]uint64, ts *uint64, wg *sync.WaitG
 	wg.Done()
 
 	return dirSize, nil
+}
+
+func GetOneDiskFreeBytes(mount string) (uint64, error) {
+	var stat unix.Statfs_t
+	err := unix.Statfs(mount, &stat)
+	if err != nil {
+		log.Printf("couldn't get disk %s size", mount)
+		return 0, err
+	}
+	free := stat.Bavail * uint64(stat.Bsize)
+	return free, nil
+}
+
+func SetErrorStateIfNoSpace() error {
+	mounts := []string{"/root", "/pse-data-index"}
+	for _, v := range mounts {
+		f, err := GetOneDiskFreeBytes(v)
+		if err != nil {
+			Pstate.State = "error"
+			err := errors.New("error on mount " + v + ": " + err.Error())
+			Pstate.Error = err.Error()
+			return err
+		}
+		if f < (1024 * 1024) {
+			Pstate.State = "error"
+			err := errors.New("no space left on disk with mount " + v)
+			Pstate.Error = err.Error()
+			return err
+		}
+		log.Printf("%d GB left on %s\n", f/1024/1024/1024, v)
+	}
+	return nil
 }
