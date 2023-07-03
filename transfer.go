@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"path"
 
@@ -55,7 +56,6 @@ func CreateUploadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
 		log.Println(err)
 		Pstate.State = "error"
 		Pstate.Error = err.Error()
-		
 	}
 	defer client.Close()
 	//
@@ -128,26 +128,21 @@ func CreateDownloadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
 	}
 	bh := client.Bucket(bucket)
 	if _, err = bh.Attrs(ctx); err != nil {
-		log.Println("can't get bucket attributes: for bucket: ",bucket)
+		log.Println("can't get bucket attributes for bucket: ", bucket)
 		log.Println(err)
 		Pstate.State = "error"
 		Pstate.Error = err.Error()
 	}
 	defer client.Close()
-	//
-	// log.Println("reading from chan: ", <-*c)
+
 
 	for v := range *c {
+		// log.Println("state= ", Pstate.State)
 		if Pstate.State == "error" {
-			for len(*c) > 0 {
-				<-*c
-			  }
 			return
 		}
-		err := retry.Do(
+		err1 := retry.Do(
 			func() error {
-
-				// obj := ppaths.ExtrObjNameFromPath()
 				obj := ExtrObjNameFromPath(strings.TrimSuffix(args.In, "/") + "/" + v.Path)
 				toMkdir := path.Dir(path.Join(args.Out, v.Path))
 
@@ -199,12 +194,13 @@ func CreateDownloadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
 				return nil
 
 			},
-			retry.Attempts(5))
-		if err != nil {
-			log.Println("errur downloading")
-			log.Println(err)
+			retry.Attempts(2))
+		if err1 != nil {
+			log.Printf("errur2 downloading %+v", err1.Error())
+			// log.Println(err1)
 			Pstate.State = "error"
-			Pstate.Error = err.Error()
+			Pstate.Error = err1.Error()
+			log.Println("state=", Pstate.State)
 			return
 		}
 	}

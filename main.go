@@ -128,15 +128,15 @@ func main() {
 
 func runCopy(args Args) {
 
-	go func() {
-		diskTicker := time.NewTicker(time.Minute * 1)
-		for ; true; <-diskTicker.C {
-			err := SetErrorStateIfNoSpace()
-			if err != nil{
-				log.Println(err)
-			}
-		}
-	}()
+	// go func() {
+	// 	diskTicker := time.NewTicker(time.Minute * 1)
+	// 	for ; true; <-diskTicker.C {
+	// 		err := SetErrorStateIfNoSpace()
+	// 		if err != nil{
+	// 			log.Println(err)
+	// 		}
+	// 	}
+	// }()
 
 	log.Printf("starting gcs_copy with credential: %s, input: %s, output: %s, conc: %d\n", args.Cred, args.In, args.Out, args.Conc)
 
