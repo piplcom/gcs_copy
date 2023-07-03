@@ -138,7 +138,12 @@ func CreateDownloadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
 	// log.Println("reading from chan: ", <-*c)
 
 	for v := range *c {
-
+		if Pstate.State == "error" {
+			for len(*c) > 0 {
+				<-*c
+			  }
+			return
+		}
 		err := retry.Do(
 			func() error {
 
@@ -200,6 +205,7 @@ func CreateDownloadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
 			log.Println(err)
 			Pstate.State = "error"
 			Pstate.Error = err.Error()
+			return
 		}
 	}
 	wg.Done()
