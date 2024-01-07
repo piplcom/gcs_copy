@@ -13,8 +13,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 type Args struct {
@@ -71,7 +70,7 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
-	textHandler := slog.NewTextHandler(os.Stdout).WithAttrs([]slog.Attr{
+	textHandler := slog.NewTextHandler(os.Stdout, nil).WithAttrs([]slog.Attr{
 		slog.String("app", "gcs_copy"),
 		slog.String("hostname", hostname),
 		slog.String("ip", ip)})
