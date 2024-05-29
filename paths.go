@@ -161,8 +161,10 @@ func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 
 func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) error {
 	log.Println("starting scanning the bucket")
+	root, _ := RemoveStarsFromRoot(root)
 	bucket := ExtrBucketNameFromPath(root)
 	prefix := ExtrPrefixNameFromGCPPath(root)
+
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
 	defer cancel()

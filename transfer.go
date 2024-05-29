@@ -113,6 +113,7 @@ func CreateUploadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
 }
 
 func CreateDownloadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
+	args.In, _ = RemoveStarsFromRoot(args.In)
 	bucket := ExtrBucketNameFromPath(args.In)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
 	defer cancel()
