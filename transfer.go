@@ -63,6 +63,7 @@ func CreateUploadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
 	for v := range *c {
 		err := retry.Do(
 			func() error {
+				// obj := strings.TrimPrefix(ExtrDirNameFromObj(dstPath)+v.Path, "/")
 				obj := strings.TrimPrefix(dstPath+"/"+v.Path, "/")
 				log.Println("will transfer: ", obj)
 				writer := bh.Object(obj).NewWriter(ctx)
@@ -142,7 +143,11 @@ func CreateDownloadRoutines(args Args, wg *sync.WaitGroup, c *chan Item) {
 		}
 		err1 := retry.Do(
 			func() error {
-				obj := ExtrObjNameFromPath(strings.TrimSuffix(args.In, "/") + "/" + v.Path)
+				obj := ExtrDirNameFromObj(ExtrObjNameFromPath(args.In)) + v.Path
+				log.Println("src: ", strings.TrimSuffix(args.In, "/")+"/"+v.Path)
+				log.Println("test: ", ExtrDirNameFromObj(ExtrObjNameFromPath(args.In))+v.Path)
+				log.Println("obj: ", obj)
+				log.Println("vpath: ", v.Path)
 				toMkdir := path.Dir(path.Join(args.Out, v.Path))
 
 				err := os.MkdirAll(toMkdir, os.ModePerm)

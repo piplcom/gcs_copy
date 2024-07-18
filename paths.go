@@ -60,6 +60,11 @@ func IsBucket(path string) bool {
 	return strings.HasPrefix(path, "gs://")
 }
 
+func ExtrDirNameFromObj(s string) string {
+	mb := regexp.MustCompile("^(.*/)[^/]*$")
+	return mb.ReplaceAllString(s, "$1")
+}
+
 func ExtrBucketNameFromPath(path string) string {
 	mb := regexp.MustCompile("gs://([^/]*).*")
 	return mb.ReplaceAllString(path, "$1")
@@ -67,10 +72,15 @@ func ExtrBucketNameFromPath(path string) string {
 
 func ExtrPrefixNameFromGCPPath(path string) string {
 	p := strings.TrimSuffix(path, "/")
+	p = strings.TrimSuffix(p, "*")
+	p = strings.TrimSuffix(p, "*")
 	mb := regexp.MustCompile("gs://([^/]*/?)(.*)")
 	t := mb.ReplaceAllString(p, "$2")
-
-	return t + "/"
+	if strings.HasSuffix(path, "/") {
+		return t + "/"
+	} else {
+		return t
+	}
 
 }
 
@@ -122,7 +132,13 @@ func Direction(in, out string) (string, error) {
 func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 	log.Printf("starting scanning the local directory")
 
+	log.Println("--- root0: ", root)
 	root, pref := RemoveStarsFromRoot(root)
+
+	log.Println("--- root1: ", root)
+	log.Println("HHEERREE")
+	log.Println("--- root2: ", root)
+	log.Println("--- pref: ", pref)
 
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		log.Printf("%q does not exist, will create it\n", root)
@@ -159,10 +175,12 @@ func PWalkDir(root string, items *Items, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) error {
+func WalkBucket(direction string, root string, items *Items, wg *sync.WaitGroup, cred string) error {
 	log.Println("starting scanning the bucket")
 	bucket := ExtrBucketNameFromPath(root)
+	log.Println("--- bucket: ", bucket)
 	prefix := ExtrPrefixNameFromGCPPath(root)
+	log.Println("--- prefix: ", prefix)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*500000)
 	defer cancel()
@@ -194,11 +212,20 @@ func WalkBucket(root string, items *Items, wg *sync.WaitGroup, cred string) erro
 		if err == iterator.Done {
 			break
 		}
+
 		if err != nil {
 			log.Printf("Bucket(%q).Objects(): %v", bucket, err)
 		}
+
 		if !strings.HasSuffix(attrs.Name, "/") {
-			f := Item{Path: strings.TrimPrefix(attrs.Name, prefix), Size: attrs.Size}
+			var f Item
+			if direction == "bucket2local" {
+				log.Printf("found file: %s with prefix %s and %s ", attrs.Name, prefix, ExtrDirNameFromObj(prefix))
+				f = Item{Path: strings.TrimPrefix(attrs.Name, ExtrDirNameFromObj(prefix)), Size: attrs.Size}
+			} else if direction == "local2bucket" {
+				log.Printf("found file: %s with prefix %s and %s ", attrs.Name, prefix, ExtrDirNameFromObj(prefix))
+				f = Item{Path: strings.TrimPrefix(attrs.Name, prefix), Size: attrs.Size}
+			}
 			items.List = append(items.List, f)
 		}
 	}

@@ -176,7 +176,7 @@ func runCopy(args Args) {
 	log.Println("gcs_copy started at: ", time.Now())
 
 	go PWalkDir(localRoot, &AllFiles, &walkWg)
-	go WalkBucket(bucketRoot, &AllObjects, &walkWg, *fcred)
+	go WalkBucket(direction, bucketRoot, &AllObjects, &walkWg, *fcred)
 	walkWg.Wait()
 	FillItemsToTransfer(*itemObjects["in"], *itemObjects["out"], &ItemsToTransfer)
 	// ppaths.FillItemsToTransfer(ppaths.AllFiles, ppaths.AllObjects)
